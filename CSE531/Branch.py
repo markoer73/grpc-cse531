@@ -89,7 +89,7 @@ class Branch(banking_pb2_grpc.BankingServicer):
     #
     def Run_Branch(self, bind_address, LOGGER, THREAD_CONCURRENCY):
         """Start a server (branch) in a subprocess."""
-        LOGGER.info(f'Starting branch at {bind_address}...')
+        LOGGER.info(f'Running branch at {bind_address}...')
         sys.stdout.flush()
 
         options = (('grpc.so_reuseport', 1),)

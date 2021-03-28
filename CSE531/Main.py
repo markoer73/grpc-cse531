@@ -15,6 +15,7 @@ import logging
 import socket
 import argparse
 import json
+import array
 
 from concurrent import futures
 from Branch import Branch
@@ -110,11 +111,11 @@ def Load_Input_File(filename, branches, customers):
     for b in branches:
         for b1 in branches:
             b.branches.append(b1.id)
-        LOGGER.info(f'Branch #{b.id} initialised with Balance={b.balance}, Known Branches={b.branches}')
+        LOGGER.info(f'Branch #{b.id} initialised with Balance={b.balance}; Branches identified={b.branches}')
     # Append the list of all events to customers
     for c in customers:
         for e in c.events:
-            LOGGER.info(f'Customer #{c.id} -> Event #{e["id"]}, {e["interface"]}, {e["money"]}')
+            LOGGER.info(f'Customer #{c.id} has Event #{e["id"]} = {e["interface"]}, {e["money"]}')
 
     file.close()
 
@@ -134,6 +135,8 @@ def Reserve_Port():
 
 def main():
     """Main function."""
+    LOGGER.info(f'*** Processing Arguments ***')
+    sys.stdout.flush()
     input_file, output_file = Process_Args()
     if not input_file:
         input_file = 'input.json'
@@ -141,9 +144,13 @@ def main():
         output_file = 'output.json'
     branches = list()
     customers = list()
+
+    LOGGER.info(f'*** Processing Input File ***')
+    sys.stdout.flush()
     Load_Input_File(input_file, branches, customers)
+    branch_addresses = list()
     workers = list()
-    workers = []
+    #workers = []
 
     # Spawns processes for branches
     #
@@ -151,22 +158,55 @@ def main():
     # any gRPC servers start up. See
     # https://github.com/grpc/grpc/issues/16001 for more details.
 
+    LOGGER.info(f'*** Starting Processes for Server Branches ***')
+    sys.stdout.flush()
+
     for curr_branch in branches:
         with Reserve_Port() as curr_port:
             bind_address = '[::]:{}'.format(curr_port)
         
-            LOGGER.info(f'Reserved {bind_address} for Branch #{curr_branch.id}...')
+            # Too noisy...
+            # LOGGER.info(f'Reserved {bind_address} for Branch #{curr_branch.id}...')
             sys.stdout.flush()
         
             worker = multiprocessing.Process(name=f'Branch-{curr_branch.id}', target=Branch.Run_Branch,
                                                 args=(Branch,bind_address,LOGGER,THREAD_CONCURRENCY))
             worker.start()
             workers.append(worker)
+            branch_addresses.append(curr_branch.id, bind_address)
             
             LOGGER.info(f'Started branch \"{worker.name}\" with PID {worker.pid} at address {bind_address} successfully')
             sys.stdout.flush()
-    
+
+    # Spawns processes for customers
+    #
+    # We are spawning a process for each customer, which in turn execute their events via their stubs
+    # and communicates with the respectives' servers' processes.
+    # We need to pass the address binded of the matching server in the Customer class constructor
+    # or it won't be able to determine it.
+
+    LOGGER.info(f'*** Starting Processes for Client Customers ***')
+    sys.stdout.flush()
+
+    for curr_customer in customers:
+#        with Reserve_Port() as curr_port:
+#            bind_address = '[::]:{}'.format(curr_port)
+#            LOGGER.info(f'Reserved {bind_address} for Customer #{curr_customer.id}...')
+#            sys.stdout.flush()
+
+        # Find the bind_address of the Branch for the current Customer
+        Banch_address = branch_workers[curr_customer.id].bind_address
+        
+        worker = multiprocessing.Process(name=f'Customer-{curr_customer.id}', target=Customer.Run_Customer,
+                                            args=(Customer,Branch_address,LOGGER,THREAD_CONCURRENCY))
+        worker.start()
+        workers.append(worker)
+        
+        LOGGER.info(f'Started customer \"{worker.name}\" with PID {worker.pid} successfully')
+        sys.stdout.flush()
+
     for worker in workers:
+        #worker.start()
         worker.join()
 
 
