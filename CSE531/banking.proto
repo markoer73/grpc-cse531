@@ -1,0 +1,39 @@
+// Marco Ermini - March 2021 for ASU CSE531 Course
+// Do not leech!
+// Implementation of a banking's branches/customers RPC synchronisation using GRPC and Python
+// Built with python 3.8 with GRPC and GRPC-tools libraries; may work with other Python versions
+
+
+syntax = "proto3";
+
+package app;
+
+service Banking {
+	rpc MsgDelivery(MsgDeliveryRequest) returns (MsgDeliveryResponse) {}
+}
+
+enum Operation {
+	QUERY 		= 0;		// Query amount of $$
+	DEPOSIT		= 1;		// Deposit amounf of $$
+	WITHDRAW	= 2;		// Withdraw amount of $$
+}
+
+enum ReturnCode {
+	SUCCESS 	= 0;		// Query, Deposit, or Withdraw succeeded
+	FAILURE		= 1;		// Query, Deposit, or Withdraw failed
+	ERROR		= 2;		// Error in the operation
+}
+
+message MsgDeliveryRequest  {
+	int64 S_ID	= 1;		// Branch or Client Source ID
+	Operation OP    = 2;		// Operation requested
+	int64 Amount 	= 3;		// Amount of $$ involved
+	int64 D_ID	= 4;		// Branch or Client Destination ID
+}
+
+message MsgDeliveryResponse {
+	int64 ID	= 1;		// Branch or Client ID
+	ReturnCode RC	= 2;		// Return Code from the operation
+	int64 Amount	= 3;		// Amound of $$ involved
+}
+

@@ -1,0 +1,170 @@
+import logging
+import multiprocessing
+import sys
+import contextlib
+import datetime
+import logging
+import time
+import socket
+import argparse
+import json
+
+from concurrent import futures
+from Branch import Branch
+from Customer import Customer
+
+import grpc
+
+import bankingrpc_pb2
+import bankingrpc_pb2_grpc
+
+# Global logger
+LOGGER = logging.getLogger(__name__)
+
+#
+# Multiprocessing reused from https://github.com/grpc/grpc/tree/801c2fd832ec964d04a847c6542198db093ff81d/examples/python/multiprocessing
+#
+
+ONE_DAY = datetime.timedelta(days=1)
+# the number of branches and customers are setup as equal the number of CPUs enumerated by Python
+THREAD_CONCURRENCY = multiprocessing.cpu_count()
+SLEEP_SECONDS = 3
+PROCESS_COUNT = 4
+STARTING_PORT = 50000
+
+def _wait_forever(server):
+    try:
+        while True:
+            time.sleep(ONE_DAY.total_seconds())
+    except KeyboardInterrupt:
+        server.stop(None)
+
+# Moved to Branch.py
+#def _run_branch(branch, bind_address):
+#    """Start a server (branch) in a subprocess."""
+#    LOGGER.info('Starting branch #{branch.ID] at {bind_address}')
+#    options = (('grpc.so_reuseport', 1),)
+#
+#    server = grpc.server(futures.ThreadPoolExecutor(
+#        max_workers=_THREAD_CONCURRENCY,),
+#                         options=options)
+# 
+#    BankingRPC_pb2_grpc.add_BankingRPC_to_server(branch, server)
+#
+#    server.add_insecure_port(bind_address)
+#    server.start()
+#    _wait_forever(server)
+
+# First version
+#def _run_branch(branch):
+#    logger = logging.getLogger(LOG_NAME)
+#    address = f'[::]:{50000 + branch.id_}'
+#    options = (('grpc.so_reuseport', 1),)
+#    logger.info(f'Starting branch {branch.id_} at {address}.')
+#    server = grpc.server(futures.ThreadPoolExecutor(max_workers=THREAD_CONCURRENCY), options=options)
+#    rpc_pb2_grpc.add_RPCServicer_to_server(branch, server)
+#    server.add_insecure_port(address)
+#    server.start()
+#    _wait_forever(server)
+
+
+@contextlib.contextmanager
+def Reserve_Port():
+    """Find and reserve a port for all subprocesses to use."""
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    if sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT) == 0:
+        raise RuntimeError("Failed to set SO_REUSEPORT.")
+    sock.bind(('', 0))
+    try:
+        yield sock.getsockname()[1]
+    finally:
+        sock.close()
+
+def Process_Args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--Input', help='File name containing branches and customers, in JSON format')
+    parser.add_argument('-o', '--Output', help='Output file name to use')
+    args = parser.parse_args()
+    return args.Input, args.Output
+
+
+def Parse_Input_File(filename, branches_list, customers):
+    file = open(f'{filename}')
+    items = json.load(file)
+    # Retrieves:
+    #   the branches' list and populate IDs and balances
+    #   the customers' operations and populate events
+    for item in items:
+        if item['type'] == 'branch':
+            branch = Branch(item['id'], item['balance'], list())
+            branches_list.append(branch)
+        if item['type'] == 'customer':
+            events = list()
+            for event in item['events']:
+                events.append(event)
+            customer = Customer(item['id'], events)
+            customers.append(customer)
+
+    # Append the list of all branches to every branch
+    for b in branches_list:
+        for b1 in branches_list:
+            b.branches.append(b1.id)
+        LOGGER.info(f'Branch #{b.id}, Balance={b.balance}, Known Branches={b.branches}')
+    # Append the list of all events to customers
+    for c in customers:
+        logger.info(f'Customer {c.id_}')
+        for e in c.events:
+            LOGGER.info(f'Event #{e["id"]}, {e["interface"]}, {e["money"]}')
+
+    file.close()
+
+
+def main():
+
+    input_file, output_file = Process_Args()
+    if not input_file:
+        raise Exception(f'No input filename found or filename wrong')
+    if not output_file:
+        raise Exception(f'No output filename indicated, but it must be set')
+    branches_list = list()
+    customers = list()
+    Parse_Input_File(input_file, branches_list, customers)
+    workers = list()
+
+    #for branch in branches_list:
+    #    worker = multiprocessing.Process(target=_run_branch, args=(branch,))
+    #    worker.start()
+    #    workers.append(worker)
+    #for worker in workers:
+    #    worker.join()
+
+    # Spawns processes for branches
+    #
+    # NOTE: It is imperative that the worker subprocesses be forked before
+    # any gRPC servers start up. See
+    # https://github.com/grpc/grpc/issues/16001 for more details.
+    with Reserve_Port() as port:
+        bind_address = '[::]:{}'.format(port)
+        LOGGER.info("Binding to '%s'", bind_address)
+        sys.stdout.flush()
+        workers = []
+        for _ in branches_list:
+        #for _ in range(PROCESS_COUNT):
+            worker = multiprocessing.Process(target=Branch.Run_Branch,
+                                             args=(id,LOGGER,))
+            worker.start()
+            workers.append(worker)
+        for worker in workers:
+            worker.join()
+
+
+if __name__ == '__main__':
+	handler = logging.StreamHandler(sys.stdout)
+	formatter = logging.Formatter('[PID %(process)d %(asctime)s] %(message)s')
+	handler.setFormatter(formatter)
+	LOGGER.addHandler(handler)
+	LOGGER.setLevel(logging.INFO)
+	main()
+
+
