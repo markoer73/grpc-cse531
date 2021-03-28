@@ -192,13 +192,14 @@ def main():
     for curr_customer in customers:
 #        with Reserve_Port() as curr_port:
 #            bind_address = '[::]:{}'.format(curr_port)
-#            LOGGER.info(f'Reserved {bind_address} for Customer #{curr_customer.id}...')
-#            sys.stdout.flush()
+        LOGGER.info(f'Processing Customer #{curr_customer.id}...')
+        sys.stdout.flush()
 
         # Find the bind_address of the Branch for the current Customer
         for i in range(len(branches_addresses_ids)):
-            if branches_addresses_ids[i] == curr_branch.id
-                Branch_address = branches_addresses_ids [i]
+            if branches_addresses_ids[i][0] == curr_customer.id:
+                Branch_address = branches_addresses_ids [i][1]
+                break
         
         worker = multiprocessing.Process(name=f'Customer-{curr_customer.id}', target=Customer.Run_Customer,
                                             args=(Customer,Branch_address,LOGGER,THREAD_CONCURRENCY))
