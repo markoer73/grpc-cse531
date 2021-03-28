@@ -140,7 +140,8 @@ def main():
             # save branch bind address for the customer to know
             branches_addresses_ids.append ([curr_branch.id, bind_address])
 
-            LOGGER.info(f'Started branch \"{worker.name}\" on initial balance {curr_branch.balance}), with PID {worker.pid} at address {bind_address} successfully')
+            LOGGER.info(f'Started branch \"{worker.name}\" on initial balance {curr_branch.balance}), '
+                        f'with PID {worker.pid} at address {bind_address} successfully')
             sys.stdout.flush()
 
     # Spawns processes for customers

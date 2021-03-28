@@ -55,7 +55,7 @@ class Customer:
         """Execute customer events."""
         
         # DEBUG
-        LOGGER.info(f'Executing events for a Customer')
+        LOGGER.info(f'Executing events for Customer #{self.id}')
         sys.stdout.flush()
                 
         record = {'id': self.id, 'recv': []}
@@ -64,7 +64,7 @@ class Customer:
             request_interface = get_interface(event['interface'])
             request_money = event['money']
             response = self.stub.MsgDelivery(
-                rpc_pb2.MsgDeliveryRequest(
+                banking_pb2.MsgDeliveryRequest(
                     id_=request_id,
                     interface=request_interface,
                     money=request_money,
