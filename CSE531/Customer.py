@@ -11,6 +11,7 @@ import time
 import datetime
 import sys
 import multiprocessing
+import array
 
 from concurrent import futures
 
@@ -50,9 +51,9 @@ class Customer:
 
     # Spawn the Customer process server
     #
-    def Run_Customer(self, LOGGER, THREAD_CONCURRENCY):
+    def Run_Customer(self, Branch_address, LOGGER, THREAD_CONCURRENCY):
         """Start a client (customer) in a subprocess."""
-        LOGGER.info(f'Running customer...')
+        LOGGER.info(f'Running customer connecting to server {Branch_address}...')
         sys.stdout.flush()
 
         #options = (('grpc.so_reuseport', 1),)

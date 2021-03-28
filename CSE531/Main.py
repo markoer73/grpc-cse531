@@ -148,7 +148,7 @@ def main():
     LOGGER.info(f'*** Processing Input File ***')
     sys.stdout.flush()
     Load_Input_File(input_file, branches, customers)
-    branch_addresses = list()
+    branches_addresses_ids = []
     workers = list()
     #workers = []
 
@@ -173,8 +173,9 @@ def main():
                                                 args=(Branch,bind_address,LOGGER,THREAD_CONCURRENCY))
             worker.start()
             workers.append(worker)
-            branch_addresses.append(curr_branch.id, bind_address)
-            
+            # save branch bind address for the customer to know
+            branches_addresses_ids.append ([curr_branch.id, bind_address])
+
             LOGGER.info(f'Started branch \"{worker.name}\" with PID {worker.pid} at address {bind_address} successfully')
             sys.stdout.flush()
 
@@ -195,7 +196,9 @@ def main():
 #            sys.stdout.flush()
 
         # Find the bind_address of the Branch for the current Customer
-        Banch_address = branch_workers[curr_customer.id].bind_address
+        for i in range(len(branches_addresses_ids)):
+            if branches_addresses_ids[i] == curr_branch.id
+                Branch_address = branches_addresses_ids [i]
         
         worker = multiprocessing.Process(name=f'Customer-{curr_customer.id}', target=Customer.Run_Customer,
                                             args=(Customer,Branch_address,LOGGER,THREAD_CONCURRENCY))
