@@ -94,9 +94,8 @@ class Branch(banking_pb2_grpc.BankingServicer):
 
         options = (('grpc.so_reuseport', 1),)
 
-        server = grpc.server(futures.ThreadPoolExecutor(
-            max_workers=THREAD_CONCURRENCY,),
-                             options=options)
+        #self.initial_balance
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=THREAD_CONCURRENCY,), options=options)
 
         banking_pb2_grpc.add_BankingServicer_to_server(Branch, server)
 
