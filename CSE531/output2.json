@@ -10,3 +10,6 @@
 {"id": 567, "recv": [{"interface": "WITHDRAW", "result": "SUCCESS"}, {"interface": "QUERY", "result": "SUCCESS", "money": 1902}]}
 {"id": 345, "recv": [{"interface": "QUERY", "result": "SUCCESS", "money": 2200}, {"interface": "DEPOSIT", "result": "SUCCESS"}, {"interface": "DEPOSIT", "result": "SUCCESS"}]}
 {"id": 567, "recv": [{"interface": "WITHDRAW", "result": "SUCCESS"}, {"interface": "QUERY", "result": "SUCCESS", "money": 1902}]}
+{"id": 567, "recv": [{"interface": "WITHDRAW", "result": "SUCCESS"}, {"interface": "QUERY", "result": "SUCCESS", "money": 1902}]}
+{"id": 987, "recv": [{"interface": "DEPOSIT", "result": "SUCCESS"}, {"interface": "WITHDRAW", "result": "FAILURE"}, {"interface": "QUERY", "result": "SUCCESS", "money": 220}, {"interface": "WITHDRAW", "result": "SUCCESS"}]}
+{"id": 345, "recv": [{"interface": "QUERY", "result": "SUCCESS", "money": 2200}, {"interface": "DEPOSIT", "result": "SUCCESS"}, {"interface": "DEPOSIT", "result": "SUCCESS"}]}
