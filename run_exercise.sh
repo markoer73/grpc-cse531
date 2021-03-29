@@ -1,11 +1,11 @@
-python -m pip install virtualenv
+python3 -m pip install virtualenv
 cd ..
 virtualenv grpc 2&>/dev/null
 source grpc/bin/activate
-python -m pip install --upgrade pip
-python -m pip install grpcio
-python -m pip install grpcio-tools
-python -m pip install protobuf
+python3 -m pip install --upgrade pip
+python3 -m pip install grpcio
+python3 -m pip install grpcio-tools
+python3 -m pip install protobuf
 
 cd grpc/CSE531
 
