@@ -56,7 +56,7 @@ class Customer:
         """Execute customer events."""
         
         # DEBUG
-        MyLog(logger,f'Executing events for Customer #{self.id}')
+        #MyLog(logger,f'Executing events for Customer #{self.id}')
                 
         record = {'id': self.id, 'recv': []}
         for event in self.events:
@@ -83,6 +83,8 @@ class Customer:
                 values['money'] = response.Amount
             record['recv'].append(values)
         if record['recv']:
+            # DEBUG
+            #MyLog(logger,f'Writing JSON file on #{output_file}')
             with open(f'{output_file}', 'a') as outfile:
                 json.dump(record, outfile)
                 outfile.write('\n')

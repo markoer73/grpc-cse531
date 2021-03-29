@@ -68,10 +68,10 @@ class Branch(banking_pb2_grpc.BankingServicer):
         
         # If DO_NOT_PROPAGATE it means it has come from another branch and it must not be
         # spread further.  Also, no need to propagate query operations.
-        if request.dest != DO_NOT_PROPAGATE and request.interface == Banking_pb2.DEPOSIT:
-            self.propagate_deposit(request.id, request.money)
-        if request.dest != DO_NOT_PROPAGATE and request.interface == Banking_pb2.WITHDRAW:
-            self.propagate_withdraw(request.id, request.money)
+        if request.D_ID != DO_NOT_PROPAGATE and request.OP == banking_pb2.DEPOSIT:
+            self.Propagate_Deposit(request.D_ID, request.Amount)
+        if request.D_ID != DO_NOT_PROPAGATE and request.OP == banking_pb2.WITHDRAW:
+            self.Propagate_Withdraw(request.D_ID, request.Amount)
         
         return response
 
@@ -97,9 +97,9 @@ class Branch(banking_pb2_grpc.BankingServicer):
         return self.balance
 
     def Propagate_Deposit(self, request_id, amount):
-        MyLog(logger,f'Propagate {get_interface_name(banking_pb2.DEPOSIT)} id {request_id} amount {amount}')
+        MyLog(logger,f'Propagate {get_operation_name(banking_pb2.DEPOSIT)} id {request_id} amount {amount} to other branches')
         if not self.stubList:
-            self.populate_stub_list()
+            self.Populate_Stub_List()
         for stub in self.stubList:
             response = stub.MsgDelivery(
                 banking_pb2.MsgDeliveryRequest(
@@ -110,14 +110,14 @@ class Branch(banking_pb2_grpc.BankingServicer):
                 )
             )
             MyLog(logger,
-                f'Branch {self.id_} sent request {request_id} to Branch '
+                f'Branch {self.id} sent request {request_id} to other Branches -'
                 f'operation {get_operation_name(banking_pb2.DEPOSIT)} result {get_result_name(response.RC)} '
                 f'money {response.Amount}')
 
-    def propagate_withdraw(self, request_id, amount):
-        MyLog(logger,f'Propagate {get_interface_name(banking_pb2.WITHDRAW)} id {request_id} amount {amount}')
+    def Propagate_Withdraw(self, request_id, amount):
+        MyLog(logger,f'Propagate {get_operation_name(banking_pb2.WITHDRAW)} id {request_id} amount {amount} to other branches')
         if not self.stubList:
-            self.populate_stub_list()
+            self.Populate_Stub_List()
         for stub in self.stubList:
             response = stub.MsgDelivery(
                 banking_pb2.MsgDeliveryRequest(
@@ -128,7 +128,7 @@ class Branch(banking_pb2_grpc.BankingServicer):
                 )
             )
             MyLog(logger,
-                f'Branch {self.id_} sent request {request_id} to Branch '
+                f'Branch {self.id} sent request {request_id} to other Branches -'
                 f'operation {get_operation_name(banking_pb2.WITHDRAW)} result {get_result_name(response.RC)} '
                 f'money {response.Amount}')
 
