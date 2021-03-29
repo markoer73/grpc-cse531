@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args": ["-i ${cwd}/CSE531/test1.json", "-o ${cwd}/CSE531/output.json"],
+            "args": ["-i ${cwd}/CSE531/test1.json", "-o ${cwd}/CSE531/output1.json"],
             "console": "integratedTerminal"
         }
     ]

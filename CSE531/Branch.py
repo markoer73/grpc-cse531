@@ -48,14 +48,14 @@ class Branch(banking_pb2_grpc.BankingServicer):
     def MsgDelivery(self, request, context):
         self.recvMsg.append(request)
         balance_result = None
+        response_result = None
         if request.OP == banking_pb2.QUERY:
             time.sleep(SLEEP_SECONDS)
             balance_result = self.Query()
         if request.OP == banking_pb2.DEPOSIT:
             balance_result = self.Deposit(request.Amount)
         if request.OP == banking_pb2.WITHDRAW:
-            balance_result = self.Withdraw(request.Amount)
-        response_result = banking_pb2.SUCCESS if balance_result else banking_pb2.FAILURE
+            response_result, balance_result = self.Withdraw(request.Amount)
         MyLog(logger,
             f'Branch {self.id} response to Customer request {request.S_ID} '
             f'interface {get_operation_name(request.OP)} result {get_result_name(response_result)} '
@@ -71,7 +71,8 @@ class Branch(banking_pb2_grpc.BankingServicer):
         if request.D_ID != DO_NOT_PROPAGATE and request.OP == banking_pb2.DEPOSIT:
             self.Propagate_Deposit(request.D_ID, request.Amount)
         if request.D_ID != DO_NOT_PROPAGATE and request.OP == banking_pb2.WITHDRAW:
-            self.Propagate_Withdraw(request.D_ID, request.Amount)
+            if response_result == banking_pb2.SUCCESS:                              # only propagates if the change has been successful 
+                self.Propagate_Withdraw(request.D_ID, request.Amount)
         
         return response
 
@@ -89,12 +90,12 @@ class Branch(banking_pb2_grpc.BankingServicer):
         # there is not enough balance).
         # This distinction is currently unused but can be used for further expansions of functionalities, such as overdraft.
         if amount <= 0:		        # invalid operation
-            return BankingRPC.ERROR
+            return banking_pb2.ERROR, 0
         new_balance = self.balance - amount
         if new_balance < 0:	        # not enough money! cannot widthdraw
-            return BankingRPC.FAILURE
+            return banking_pb2.FAILURE, amount
         self.balance = new_balance
-        return self.balance
+        return banking_pb2.SUCCESS, new_balance
 
     def Propagate_Deposit(self, request_id, amount):
         MyLog(logger,f'Propagate {get_operation_name(banking_pb2.DEPOSIT)} id {request_id} amount {amount} to other branches')
