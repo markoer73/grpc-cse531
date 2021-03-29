@@ -4,9 +4,10 @@ The goal of this project is to build a distributed banking system that allows mu
 
 This is an assignment from Arizona State University (ASU), March 2021.
 
+
 ![external-content duckduckgo com](https://user-images.githubusercontent.com/22913212/112785808-29a17880-9055-11eb-8014-d637183ab0a0.png)
 
-How to run the project?
+# How to run the project?
 
 The project has been developed and tested on Ubuntu 20.04.2 LTS and Python 3.8.  It may work with other Python and Linux versions, but they have not been tested for this assignment. The operative system was a freshly installed VM running on VMware Workstation 16.1.0.
 
