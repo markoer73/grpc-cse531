@@ -9,34 +9,34 @@ Main spawner'''
 
 import logging
 import multiprocessing
-import sys
+
 import contextlib
-import logging
 import socket
 import argparse
 import json
 import array
+import socketserver
+import time
 
 from concurrent import futures
-from Branch import Branch
+from Branch import Branch, Run_Branch
 from Customer import Customer
+from Util import setup_logger, MyLog
 
 import grpc
 
 import banking_pb2
 import banking_pb2_grpc
 
-# Global logger
-LOGGER = logging.getLogger(__name__)
-
 #
 # Multiprocessing reused from https://github.com/grpc/grpc/tree/801c2fd832ec964d04a847c6542198db093ff81d/examples/python/multiprocessing
 #
 
-# setup a maximum number of thread concurrency following the number of CPUs enumerated by Python
-THREAD_CONCURRENCY = multiprocessing.cpu_count()
-SLEEP_SECONDS = 3
-PROCESS_COUNT = 4
+# setup a maximum number of thread concurrency following the number of CPUs x cores enumerated by Python
+#THREAD_CONCURRENCY = multiprocessing.cpu_count()
+THREAD_CONCURRENCY = 2
+SLEEP_SECONDS = 5
+#PROCESS_COUNT = 4
 
 def Process_Args():
     """Parse arguments."""
@@ -46,7 +46,8 @@ def Process_Args():
     args = all_args.parse_args()
     return args.Input.strip(), args.Output.strip()
 
-
+# Load input file with branches and customers
+#
 def Load_Input_File(filename, branches, customers):
     """Load from input files."""
     try:
@@ -73,35 +74,42 @@ def Load_Input_File(filename, branches, customers):
     for b in branches:
         for b1 in branches:
             b.branches.append(b1.id)
-        LOGGER.info(f'Branch #{b.id} initialised with Balance={b.balance}; Branches identified={b.branches}')
+        MyLog(logger, f'Branch #{b.id} initialised with Balance={b.balance}; Branches identified={b.branches}')
 
     # Append the list of all events to customers
     for c in customers:
         for e in c.events:
-            LOGGER.info(f'Customer #{c.id} has Event #{e["id"]} = {e["interface"]}, {e["money"]}')
+            MyLog(logger, f'Customer #{c.id} has Event #{e["id"]} = {e["interface"]}, {e["money"]}')
 
     file.close()
 
-# Always find an usable TCP/IP port on localhost for the Branches
+
+# Utility function to reserve a port for the Branches' servers.
+# Always find an usable TCP/IP port on localhost.
 #
-@contextlib.contextmanager
+#@contextlib.contextmanager
+#def Reserve_Port():
+#    """Find and reserve a port for the subprocess to use."""
+#    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+#    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+#    if  sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT) == 0:
+#        raise RuntimeError("Failed to set SO_REUSEPORT.")
+#    sock.bind(('', 0))
+#    try:
+#        yield sock.getsockname()[1]
+#    finally:
+#        sock.close()
+#
 def Reserve_Port():
-    """Find and reserve a port for the subprocess to use."""
-    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-    if  sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT) == 0:
-        raise RuntimeError("Failed to set SO_REUSEPORT.")
-    sock.bind(('', 0))
-    try:
-        yield sock.getsockname()[1]
-    finally:
-        sock.close()
+    with socketserver.TCPServer(("localhost", 0), None) as s:
+        free_port = s.server_address[1]
+    return free_port
 
 def main():
     """Main function."""
 
-    LOGGER.info(f'*** Processing Arguments ***')
-    sys.stdout.flush()
+    MyLog(logger, f'*** Processing Arguments ***')
+
     input_file, output_file = Process_Args()
     if not input_file:
         input_file = 'input.json'
@@ -110,8 +118,8 @@ def main():
     branches = list()
     customers = list()
 
-    LOGGER.info(f'*** Processing Input File ***')
-    sys.stdout.flush()
+    MyLog(logger, f'*** Processing Input File ***')
+
     Load_Input_File(input_file, branches, customers)
     branches_addresses_ids = []
     workers = list()
@@ -122,27 +130,32 @@ def main():
     # any gRPC servers start up. See
     # https://github.com/grpc/grpc/issues/16001 for more details.
 
-    LOGGER.info(f'*** Starting Processes for Servers/Branches ***')
-    sys.stdout.flush()
+    MyLog(logger, f'*** Starting Processes for Servers/Branches ***')
 
     for curr_branch in branches:
-        with Reserve_Port() as curr_port:
+#        with Reserve_Port() as curr_port:
+            curr_port = Reserve_Port()
             bind_address = '[::]:{}'.format(curr_port)
         
 #           DEBUG
-#            LOGGER.info(f'Reserved {bind_address} for Branch #{curr_branch.id}...')
+#            MyLog(logger, f'Reserved {bind_address} for Branch #{curr_branch.id}...')
 #            sys.stdout.flush()
         
-            worker = multiprocessing.Process(name=f'Branch-{curr_branch.id}', target=Branch.Run_Branch,
-                                                args=(Branch,bind_address,LOGGER,THREAD_CONCURRENCY))
+            worker = multiprocessing.Process(name=f'Branch-{curr_branch.id}', target=Run_Branch,
+                                                args=(curr_branch,bind_address,THREAD_CONCURRENCY))
             worker.start()
             workers.append(worker)
-            # save branch bind address for the customer to know
+            # save branch bind address for the customers and other branches to know
             branches_addresses_ids.append ([curr_branch.id, bind_address])
 
-            LOGGER.info(f'Started branch \"{worker.name}\" on initial balance {curr_branch.balance}), '
-                        f'with PID {worker.pid} at address {bind_address} successfully')
-            sys.stdout.flush()
+            MyLog(logger, f'Started branch \"{worker.name}\" on initial balance {curr_branch.balance}), '
+                          f'with PID {worker.pid} at address {bind_address} successfully')
+
+
+    # Wait some seconds before initialising the clients, to give time the servers to start
+    MyLog(logger, f'*** Waiting for {SLEEP_SECONDS} seconds before starting the clients ***')
+    MyLog(logger, f'    (Otherwise it will sometimes fail when the computer is slow)')
+    time.sleep(SLEEP_SECONDS)
 
     # Spawns processes for customers
     #
@@ -151,8 +164,7 @@ def main():
     # We need to pass the address binded of the matching server in the Customer class constructor
     # or it won't be able to determine it.
 
-    LOGGER.info(f'*** Starting Processes for Clients/Customers ***')
-    sys.stdout.flush()
+    MyLog(logger, f'*** Starting Processes for Clients/Customers ***')
 
     for curr_customer in customers:
         # DEBUG
@@ -168,21 +180,17 @@ def main():
                 break
         
         worker = multiprocessing.Process(name=f'Customer-{curr_customer.id}', target=Customer.Run_Customer,
-                                            args=(curr_customer,Branch_address,LOGGER,output_file,THREAD_CONCURRENCY))
+                                            args=(curr_customer,Branch_address,output_file,THREAD_CONCURRENCY))
         worker.start()
         workers.append(worker)
         
-        LOGGER.info(f'Started customer \"{worker.name}\" with PID {worker.pid} successfully')
-        sys.stdout.flush()
+        MyLog(logger, f'Started customer \"{worker.name}\" with PID {worker.pid} successfully')
 
     for worker in workers:
         worker.join()
 
 
+logger = setup_logger("Main")
 if __name__ == '__main__':
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('[PID %(process)d %(asctime)s] %(message)s')
-    handler.setFormatter(formatter)
-    LOGGER.addHandler(handler)
-    LOGGER.setLevel(logging.INFO)
+    MyLog(logger, "Logger initialised")
     main()

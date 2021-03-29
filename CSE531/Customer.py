@@ -10,7 +10,8 @@ Customer Class'''
 import time
 import datetime
 import multiprocessing
-import array
+#import array
+import json
 
 from concurrent import futures
 from Util import setup_logger, MyLog
@@ -71,16 +72,15 @@ class Customer:
                 )
             )
             MyLog(logger,
-                f'Customer {self.id} sent request {request_id} to Branch {self.id} '
-                f'interface {get_operation_name(request_operation)} result {get_result_name(response.result)} '
-                f'money {response.money}'
-            )
+                f'Customer {self.id} sent request {request_id} to Branch {response.ID} '
+                f'interface {get_operation_name(request_operation)} result {get_result_name(response.RC)} '
+                f'money {response.Amount}')
             values = {
                 'interface': get_operation_name(request_operation),
-                'result': get_result_name(response.result),
+                'result': get_result_name(response.RC),
             }
             if request_operation == banking_pb2.QUERY:
-                values['money'] = response.money
+                values['money'] = response.Amount
             record['recv'].append(values)
         if record['recv']:
             with open(f'{output_file}', 'a') as outfile:
