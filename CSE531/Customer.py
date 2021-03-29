@@ -9,18 +9,20 @@ Customer Class'''
 
 import time
 import datetime
-import sys
 import multiprocessing
 import array
 
 from concurrent import futures
+from Util import setup_logger, MyLog
 
 import grpc
 import banking_pb2
 import banking_pb2_grpc
 
-ONE_DAY = datetime.timedelta(days=1)
+#from Main import get_operation, get_operation_name, get_result_name
 
+ONE_DAY = datetime.timedelta(days=1)
+logger = setup_logger("Customer")
 
 class Customer:
     def __init__(self, ID, events):
@@ -33,15 +35,13 @@ class Customer:
         # pointer for the stub
         self.stub = None
 
-
     # Create stub for the customer, matching them with their respective branch
     #
-    def createStub(self, Branch_address, LOGGER, THREAD_CONCURRENCY):
+    def createStub(self, Branch_address, THREAD_CONCURRENCY):
         """Start a client (customer) stub."""
         
-        LOGGER.info(f'Initializing customer stub to branch stub at {Branch_address}')
-        sys.stdout.flush()
-
+        MyLog(logger, f'Initializing customer stub to branch stub at {Branch_address}')
+        
         self.stub = banking_pb2_grpc.BankingStub(grpc.insecure_channel(Branch_address))
 
         client = grpc.server(futures.ThreadPoolExecutor(max_workers=THREAD_CONCURRENCY,),)
@@ -51,57 +51,55 @@ class Customer:
     # Iterate through the list of the customer events, sends the messages,
     # and output to the JSON file
     #
-    def executeEvents(self, LOGGER, output_file):
+    def executeEvents(self, output_file):
         """Execute customer events."""
         
         # DEBUG
-        LOGGER.info(f'Executing events for Customer #{self.id}')
-        sys.stdout.flush()
+        MyLog(logger,f'Executing events for Customer #{self.id}')
                 
         record = {'id': self.id, 'recv': []}
         for event in self.events:
             request_id = event['id']
-            request_interface = get_interface(event['interface'])
-            request_money = event['money']
+            request_operation = get_operation(event['interface'])
+            request_amount = event['money']
             response = self.stub.MsgDelivery(
                 banking_pb2.MsgDeliveryRequest(
-                    id_=request_id,
-                    interface=request_interface,
-                    money=request_money,
-                    dest=self.id_,
+                    S_ID=request_id,
+                    OP=request_operation,
+                    Amount=request_amount,
+                    D_ID=self.id,
                 )
             )
-            LOGGER.info(
-                f'Customer {self.id_} sent request {request_id} to Branch {self.id_} '
-                f'interface {get_interface_name(request_interface)} result {get_result_name(response.result)} '
+            MyLog(logger,
+                f'Customer {self.id} sent request {request_id} to Branch {self.id} '
+                f'interface {get_operation_name(request_operation)} result {get_result_name(response.result)} '
                 f'money {response.money}'
             )
             values = {
-                'interface': get_interface_name(request_interface),
+                'interface': get_operation_name(request_operation),
                 'result': get_result_name(response.result),
             }
-            if request_interface == rpc_pb2.QUERY:
+            if request_operation == banking_pb2.QUERY:
                 values['money'] = response.money
             record['recv'].append(values)
         if record['recv']:
-            with open(f'output/{out_filename}', 'a') as outfile:
+            with open(f'{output_file}', 'a') as outfile:
                 json.dump(record, outfile)
                 outfile.write('\n')
 
     # Spawn the Customer process client. No need to bind to a port here; rather, we are connecting to one.
     #
-    def Run_Customer(self, Branch_address, LOGGER, output_file, THREAD_CONCURRENCY):
+    def Run_Customer(self, Branch_address, output_file, THREAD_CONCURRENCY):
         """Start a client (customer) in a subprocess."""
         # DEBUG
-        #LOGGER.info(f'Processing Customer #{self.id} with Events:' )
+        #MyLog(logger,f'Processing Customer #{self.id} with Events:' )
         #for e in self.events:
-        #    LOGGER.info(f'    #{e["id"]} = {e["interface"]}, {e["money"]}' )
+        #    MyLog(logger,f'    #{e["id"]} = {e["interface"]}, {e["money"]}' )
                 
-        LOGGER.info(f'Running client customer #{self.id} connecting to server {Branch_address}...')
-        sys.stdout.flush()
+        MyLog(logger,f'Running client customer #{self.id} connecting to server {Branch_address}...')
 
-        Customer.createStub(self, Branch_address, LOGGER, THREAD_CONCURRENCY)
-        #Customer.executeEvents(self, LOGGER, output_file)
+        Customer.createStub(self, Branch_address, THREAD_CONCURRENCY)
+        Customer.executeEvents(self, output_file)
 
         # Wait one day until keypress
         #try:
@@ -110,5 +108,33 @@ class Customer:
         #except KeyboardInterrupt:
         #    server.stop(None)
         
-        LOGGER.info(f'Client customer #{self.id} connecting to server {Branch_address} exiting successfully.')
-        
+        MyLog(logger,f'Client customer #{self.id} connecting to server {Branch_address} exiting successfully.')
+
+# Utility functions, used for readability
+#
+def get_operation(operation):
+    """Returns the message type from the operation described in the input file."""
+    if operation == 'query':
+        return banking_pb2.QUERY
+    if operation == 'deposit':
+        return banking_pb2.DEPOSIT
+    if operation == 'withdraw':
+        return banking_pb2.WITHDRAW
+
+def get_operation_name(operation):
+    """Returns the operation type from the message."""
+    if operation == banking_pb2.QUERY:
+        return 'QUERY'
+    if operation == banking_pb2.DEPOSIT:
+        return 'DEPOSIT'
+    if operation == banking_pb2.WITHDRAW:
+        return 'WITHDRAW'
+
+def get_result_name(name):
+    """Return state of a client's operation."""
+    if name == banking_pb2.SUCCESS:
+        return 'SUCCESS'
+    if name == banking_pb2.FAILURE:
+        return 'FAILURE'
+    if name == banking_pb2.ERROR:
+        return 'ERROR'
