@@ -1,32 +1,32 @@
 [
   {
-    "id" : 154,
+    "id" : 345,
     "type" : "customer",
-    "events" :  [{ "id": 1, "interface":"query", "money": 400 }]
+    "events" :  [{ "id": 1, "interface":"query", "money": 0 },{ "id": 2, "interface":"deposit", "money": 600 }, { "id": 3, "interface":"deposit", "money": 200 }]
   },
   {
-    "id" : 334,
+    "id" : 987,
     "type" : "customer",
-    "events" :  [{ "id": 2, "interface":"deposit", "money": 170 },{ "id": 3, "interface":"query", "money": 400 }]
+    "events" :  [{ "id": 4, "interface":"deposit", "money": 170 },{ "id": 5, "interface":"withdraw", "money": 390 }, { "id": 6, "interface":"query", "money": 0 }, { "id": 7, "interface":"withdraw", "money": 10 }]
   },
   {
-    "id" : 978,
+    "id" : 567,
     "type" : "customer",
-    "events" :  [{ "id": 4, "interface":"withdraw", "money": 70 },{ "id": 5, "interface":"query", "money": 400 }]
+    "events" :  [{ "id": 8, "interface":"withdraw", "money": 8000 },{ "id": 9, "interface":"query", "money": 0 }]
   },
   {
-    "id" : 1,
+    "id" : 345,
     "type" : "branch",
-    "balance" : 400
+    "balance" : 2200
   },
   {
-    "id" : 2,
+    "id" : 987,
     "type" : "branch",
-    "balance" : 400
+    "balance" : 220
   },
   {
-    "id" : 3,
+    "id" : 567,
     "type" : "branch",
-    "balance" : 400
+    "balance" : 9902
   }
 ]
